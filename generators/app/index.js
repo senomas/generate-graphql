@@ -6,15 +6,43 @@ const yaml = require("js-yaml");
 const fs = require("fs");
 const path = require("path");
 const changeCase = require("change-case");
+const git = require("git-state");
 
 module.exports = class extends Generator {
-  prompting() {
+  async prompting() {
     // Have Yeoman greet the user.
     this.log(
       yosay(
         `Welcome to the fabulous ${chalk.red("generator-graphql")} generator!`
       )
     );
+    if (!git.isGitSync(".")) {
+      this.log(`Run "git init" first!`);
+      process.exit(1);
+    }
+    const gitState = git.checkSync(".");
+    if (gitState.dirty > 0) {
+      const answers = await this.prompt([{
+        type    : 'confirm',
+        name    : 'dirty',
+        message : `Git ${gitState.dirty} dirty ${gitState.dirty > 1 ? "files" : "file"}, are you sure to run without git commit first`,
+        default: false
+      }]);
+      if (!answers.dirty) {
+        process.exit(1);
+      }
+    }
+    if (gitState.untracked > 0) {
+      const answers = await this.prompt([{
+        type    : 'confirm',
+        name    : 'untracked',
+        message : `Git ${gitState.untracked} untracked ${gitState.untracked > 1 ? "files" : "file"}, are you sure to run without git add and commit first`,
+        default: false
+      }]);
+      if (!answers.untracked) {
+        process.exit(1);
+      }
+    }
   }
 
   writing() {
@@ -58,15 +86,6 @@ module.exports = class extends Generator {
       });
     } while (dirs.length > 0);
     this.fs.copyTpl(
-      this.templatePath("_package.json"),
-      this.destinationPath("package.json"),
-      {
-        appname: this.appname,
-        user: this.user,
-        models
-      }
-    );
-    this.fs.copyTpl(
       this.templatePath("server.js"),
       this.destinationPath("server.js"),
       {
@@ -78,6 +97,6 @@ module.exports = class extends Generator {
   }
 
   // install() {
-  //   this.installDependencies();
+  //   this.yarnInstall(["apollo-server", "graphql", "graphql-mongodb-projection", "mongodb"]);
   // }
 };
