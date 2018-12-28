@@ -1,0 +1,9 @@
+{
+  "generator-node": {
+    "promptValues": {
+      "authorName": "denmaseno",
+      "authorEmail": "agus@senomas.com",
+      "authorUrl": "senomas.com"
+    }
+  }
+}
