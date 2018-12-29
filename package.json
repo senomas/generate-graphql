@@ -2,11 +2,11 @@
   "name": "generator-graphql",
   "version": "0.0.0",
   "description": "Generate graphql server",
-  "homepage": "code.senomas.com",
+  "homepage": "https://github.com/senomas/generate-graphql",
   "author": {
     "name": "denmaseno",
     "email": "agus@senomas.com",
-    "url": "senomas.com"
+    "url": "https://github.com/senomas/generate-graphql"
   },
   "files": [
     "generators"
@@ -74,6 +74,6 @@
     "pretest": "eslint .",
     "test": "jest"
   },
-  "repository": "senomas/generator-graphql",
+  "repository": "https://github.com/senomas/generate-graphql",
   "license": "ISC"
 }

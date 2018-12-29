@@ -144,9 +144,58 @@ module.exports = class extends Generator {
         parser: "babylon"
       })
     );
+    this.fs.copyTpl(
+      this.templatePath("lib.js"),
+      this.destinationPath("lib.js"),
+      {
+        appname: this.appname,
+        user: this.user,
+        models
+      }
+    );
+    this.fs.write(
+      this.destinationPath("lib.js"),
+      prettier.format(this.fs.read(this.destinationPath("lib.js")), {
+        parser: "babylon"
+      })
+    );
+    models.forEach(model => {
+      this.fs.copyTpl(
+        this.templatePath("type.js"),
+        this.destinationPath(`${model.id}.js`),
+        {
+          appname: this.appname,
+          user: this.user,
+          model
+        }
+      );
+      this.fs.write(
+        this.destinationPath(`${model.id}.js`),
+        prettier.format(this.fs.read(this.destinationPath(`${model.id}.js`)), {
+          parser: "babylon"
+        })
+      );
+    });
+    models.filter(model => model.primary.length > 0).forEach(model => {
+      this.fs.copyTpl(
+        this.templatePath("resolver.js"),
+        this.destinationPath(`${model.id}-resolver.js`),
+        {
+          appname: this.appname,
+          user: this.user,
+          model
+        }
+      );
+      this.fs.write(
+        this.destinationPath(`${model.id}-resolver.js`),
+        prettier.format(this.fs.read(this.destinationPath(`${model.id}-resolver.js`)), {
+          parser: "babylon"
+        })
+      );
+    });
   }
 
   install() {
-    this.yarnInstall(["apollo-server", "graphql", "mongodb"]);
+    // this.yarnInstall(["apollo-server", "graphql", "mongodb"]);
   }
 };
