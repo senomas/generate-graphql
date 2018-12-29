@@ -7,7 +7,7 @@ First, install [Yeoman](http://yeoman.io) and generator-graphql using [npm](http
 
 ```bash
 npm install -g yo
-npm install -g generator-graphql
+npm install -g https://github.com/senomas/generate-graphql.git
 ```
 
 Then generate your new project:

@@ -2,42 +2,59 @@ const { ApolloServer, gql } = require("apollo-server");
 const { MongoClient, ObjectId } = require("mongodb");
 
 const typeDefs = gql`
-  <%_ models.forEach(function(model) { _%>
+  <%_ models.forEach(function(model, mi) { _%>
   type <%= model.ID %> {
     <%_ model.fields.forEach(function(field) { _%>
     <%= field.id %>: <%= field.type %>
     <%_ }) _%>
   }
-
+  input <%= model.ID %>Input {
+    <%_ model.fields.forEach(function(field) { _%>
+    <%= field.id %>: <%= field.type %><%= field.hasScalarType ? "" : "Input" %>
+    <%_ }) _%>
+  }
+  <%_ if (model.primary.length > 0) { _%>
+  enum <%= model.ID %>OrderBy {
+    <%_ model.allKeyFields.forEach(function(field) { _%>
+    <%= field.id %>_ASC
+    <%= field.id %>_DESC
+    <%_ }) _%>
+  }
+  input <%= model.ID %>Filter {
+    skip: Int!
+    limit: Int!
+    orderBy: <%= model.ID %>OrderBy
+  }
   type <%= model.ID %>PartialList {
     items: [<%= model.ID %>]
     total: Int
   }
-  <%_ }) _%>
+  <%_ }}) _%>
 
   type Query {
-    <%_ models.forEach(function(model) { _%>
+    <%_ models.filter(m => m.primary.length > 0).forEach(function(model, mi) { _%>
+    <%_ mi > 0 ? "\n" : "" _%>
     <%= model.id %>(<% 
       model.primary.forEach(function(field, index) { %><%= index > 0 ? ", " : "" %><%= field.id %>: <%= field.type %>!<% })
     %>): <%= model.ID %>
     <%= model.id %>List(<% 
       model.keyFields.forEach(function(field, index) { %><%= index > 0 ? ", " : "" %><%= field.id %>: <%= field.type %><% })
-    %>): <%= model.ID %>PartialList
+    %>, filter: <%= model.ID %>Filter): <%= model.ID %>PartialList
     <%_ }) _%>
   }
 
   type Mutation {
-    <%_ models.forEach(function(model) { _%>
+    <%_ models.filter(m => m.primary.length > 0).forEach(function(model) { _%>
     <%= model.id %>Create(<% 
       model.fields.filter(function (f) {
         return !f.validations["auto-generate"]
-      }).forEach(function(field, index) { %><%= index > 0 ? ", " : "" %><%= field.id %>: <%= field.type %><%= field.validations.mandatory ? "!" : "" %><% })
+      }).forEach(function(field, index) { %><%= index > 0 ? ", " : "" %><%= field.id %>: <%= field.type %><%= field.hasScalarType ? "" : "Input" %><%= field.validations.mandatory ? "!" : "" %><% })
     %>): <%= model.ID %>
     <%_ }) _%>
   }
 `;
 
-<%_ models.forEach(function(model) { _%>
+<%_ models.filter(m => m.primary.length > 0).forEach(function(model) { _%>
 function <%= model.id %>Encode(obj) {
   if (Array.isArray(obj)) {
     obj.forEach(v => {
@@ -69,9 +86,9 @@ function <%= model.id %>Decode(obj) {
 }
 <%_ }) _%>
 
-function getProjection(info) {
+function doGetProjection(selectionSet) {
   const projection = {};
-  info.fieldNodes[0].selectionSet.selections.forEach(v => {
+  selectionSet.selections.forEach(v => {
     if (v.kind === "Field") {
       projection[v.name.value] = true;
     }
@@ -79,33 +96,52 @@ function getProjection(info) {
   return projection;
 }
 
+function getProjection(info) {
+  return doGetProjection(info.fieldNodes[0].selectionSet);
+}
+
 function getSubProjection(info) {
-  const projection = {};
-  info.fieldNodes[0].selectionSet.selections[0].selectionSet.selections.forEach(v => {
-    if (v.kind === "Field") {
-      projection[v.name.value] = true;
-    }
-  });
-  return projection;
+  return doGetProjection(info.fieldNodes[0].selectionSet.selections[0].selectionSet);
 }
 
 const resolvers = {
   Query: {
-    <%_ models.forEach(function(model) { _%>
+    <%_ models.filter(m => m.primary.length > 0).forEach(function(model) { _%>
     <%= model.id %>: async (parent, args, context, info) => {
       args = <%= model.id %>Decode(args);
-      return <%= model.id %>Encode(await context.db.collection("<%= model.id %>").findOne(args, getProjection(info)));
+      const projection = getSubProjection(info);
+      return <%= model.id %>Encode(await context.db.collection("<%= model.id %>").findOne(args, { projection }));
     },
     <%= model.id %>List: async (parent, args, context, info) => {
+      const options = {};
+      if (args.filter) {
+        const filter = args.filter;
+        options.skip = filter.skip;
+        options.limit = filter.limit;
+        switch (filter.orderBy) {
+          <%_ model.allKeyFields.forEach(function(field) { _%>
+          case "<%= field.id %>_ASC":
+            options.sort = { <%= field.id %>: 1 };
+            break;
+          case "<%= field.id %>_DESC":
+            options.sort = { <%= field.id %>: -1 };
+            break;
+          <%_ }) _%>
+          default:
+            throw new Error(`Invalid orderBy '${filter.orderBy}'`)
+        }
+        delete args.filter;
+      }
       args = <%= model.id %>Decode(args);
+      options.projection = getSubProjection(info);
       const total = await context.db.collection("<%= model.id %>").countDocuments(args);
-      const items = <%= model.id %>Encode(await context.db.collection("<%= model.id %>").find(args, getSubProjection(info)).toArray());
+      const items = <%= model.id %>Encode(await context.db.collection("<%= model.id %>").find(args, options).toArray());
       return { total, items }
     },
     <%_ }) _%>
   },
   Mutation: {
-    <%_ models.forEach(function(model) { _%>
+    <%_ models.filter(m => m.primary.length > 0).forEach(function(model) { _%>
     <%= model.id %>Create: async (parent, args, context, info) => {
       args = <%= model.id %>Decode(args);
       const res = await context.db.collection("<%= model.id %>").insertOne(args);

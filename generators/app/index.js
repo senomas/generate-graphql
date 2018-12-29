@@ -7,10 +7,16 @@ const fs = require("fs");
 const path = require("path");
 const changeCase = require("change-case");
 const git = require("git-state");
+const prettier = require("prettier");
+
+const scalarType = ["String", "Int", "ID", "Boolean", "Float"];
+
+function isScalarType(type) {
+  return scalarType.indexOf(type) >= 0;
+}
 
 module.exports = class extends Generator {
   async prompting() {
-    // Have Yeoman greet the user.
     this.log(
       yosay(
         `Welcome to the fabulous ${chalk.red("generator-graphql")} generator!`
@@ -22,23 +28,31 @@ module.exports = class extends Generator {
     }
     const gitState = git.checkSync(".");
     if (gitState.dirty > 0) {
-      const answers = await this.prompt([{
-        type    : 'confirm',
-        name    : 'dirty',
-        message : `Git ${gitState.dirty} dirty ${gitState.dirty > 1 ? "files" : "file"}, are you sure to run without git commit first`,
-        default: false
-      }]);
+      const answers = await this.prompt([
+        {
+          type: "confirm",
+          name: "dirty",
+          message: `Git ${gitState.dirty} dirty ${
+            gitState.dirty > 1 ? "files" : "file"
+          }, are you sure to run without git commit first`,
+          default: false
+        }
+      ]);
       if (!answers.dirty) {
         process.exit(1);
       }
     }
     if (gitState.untracked > 0) {
-      const answers = await this.prompt([{
-        type    : 'confirm',
-        name    : 'untracked',
-        message : `Git ${gitState.untracked} untracked ${gitState.untracked > 1 ? "files" : "file"}, are you sure to run without git add and commit first`,
-        default: false
-      }]);
+      const answers = await this.prompt([
+        {
+          type: "confirm",
+          name: "untracked",
+          message: `Git ${gitState.untracked} untracked ${
+            gitState.untracked > 1 ? "files" : "file"
+          }, are you sure to run without git add and commit first`,
+          default: false
+        }
+      ]);
       if (!answers.untracked) {
         process.exit(1);
       }
@@ -47,6 +61,7 @@ module.exports = class extends Generator {
 
   writing() {
     const models = [];
+    const types = {};
     const dirs = [`../${this.appname}-model/model`];
     do {
       const dir = dirs.shift();
@@ -56,12 +71,6 @@ module.exports = class extends Generator {
           const fmod = yaml.safeLoad(
             fs.readFileSync(path.join(dir, file.name))
           );
-          fmod.primary = fmod.primary.map(fn => {
-            if (!fmod.fields[fn]) {
-              throw new Error(`Field '${fn}' not exist`);
-            }
-            return fmod.fields[fn];
-          });
           const keyFields = {};
           if (fmod.keys) {
             Object.entries(fmod.keys).forEach(k => {
@@ -74,17 +83,52 @@ module.exports = class extends Generator {
             });
           }
           fmod.keyFields = Object.values(keyFields);
+          if (fmod.primary) {
+            fmod.primary = fmod.primary.map(fn => {
+              if (!fmod.fields[fn]) {
+                throw new Error(`Field '${fn}' not exist`);
+              }
+              keyFields[fn] = fmod.fields[fn];
+              return fmod.fields[fn];
+            });
+          } else {
+            fmod.primary = [];
+          }
+          fmod.allKeyFields = Object.values(keyFields);
           fmod.fields = Object.entries(fmod.fields).map(k => {
-            k[1].id = k[0];
-            return k[1];
+            const f = k[1];
+            f.id = k[0];
+            if (!f.validations) {
+              f.validations = {};
+            }
+            return f;
           });
           fmod.ID = changeCase.pascalCase(fmod.id);
+          types[fmod.ID] = fmod;
           models.push(fmod);
         } else if (file.isDirectory()) {
           dirs.push(path.join(dir, file.name));
         }
       });
     } while (dirs.length > 0);
+    models.forEach(model => {
+      model.fields.forEach(field => {
+        if (isScalarType(field.type)) {
+          field.hasScalarType = true;
+        } else {
+          if (!types[field.type]) {
+            this.log(
+              `Unknown type ${model.id}.${field.type} ${JSON.stringify(
+                modelMap,
+                undefined,
+                2
+              )}`
+            );
+            process.exit(1);
+          }
+        }
+      });
+    });
     this.fs.copyTpl(
       this.templatePath("server.js"),
       this.destinationPath("server.js"),
@@ -94,9 +138,15 @@ module.exports = class extends Generator {
         models
       }
     );
+    this.fs.write(
+      this.destinationPath("server.js"),
+      prettier.format(this.fs.read(this.destinationPath("server.js")), {
+        parser: "babylon"
+      })
+    );
   }
 
-  // install() {
-  //   this.yarnInstall(["apollo-server", "graphql", "graphql-mongodb-projection", "mongodb"]);
-  // }
+  install() {
+    this.yarnInstall(["apollo-server", "graphql", "mongodb"]);
+  }
 };
