@@ -1,10 +1,10 @@
 const { ApolloServer, gql } = require("apollo-server");
 const { MongoClient, ObjectId } = require("mongodb");
 <%_ models.forEach(function(model) { if (model.primary.length > 0) { _%>
-const { typeDef: <%= model.ID %>Type } = require("./<%= model.id %>");
+const { <%= model.id %>TypeDef } = require("./<%= model.id %>");
 const { <%= model.id %>Resolver, <%= model.id %>ListResolver, <%= model.id %>Create } = require("./<%= model.id %>-resolver");
 <%_ } else { _%>
-const { typeDef: <%= model.ID %>Type } = require("./<%= model.id %>");
+const { <%= model.id %>TypeDef } = require("./<%= model.id %>");
 <%_ }}) _%>
 
 const client = new MongoClient("mongodb://localhost:27017/test", { useNewUrlParser: true });
@@ -15,7 +15,7 @@ client.connect().then(() => {
 });
 
 const server = new ApolloServer({
-  typeDefs: [<% models.forEach((model, index) => { %><%= index > 0 ? ", " : "" %><%= model.ID %>Type<% }) %>],
+  typeDefs: [<% models.forEach((model, index) => { %><%= index > 0 ? ", " : "" %><%= model.id %>TypeDef<% }) %>],
   resolvers: {
     Query: {
       <%_ models.filter(m => m.primary.length > 0).forEach(function(model) { _%>

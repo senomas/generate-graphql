@@ -1,6 +1,6 @@
 const { gql } = require("apollo-server");
 
-const typeDef = gql`
+const <%= model.id %>TypeDef = gql`
   type <%= model.ID %> {
     <%_ model.fields.forEach(function(field) { _%>
     <%= field.id %>: <%= field.type %>
@@ -47,4 +47,4 @@ const typeDef = gql`
   <%_ } _%>
 `;
 
-module.exports = { typeDef }
+module.exports = { <%= model.id %>TypeDef }
