@@ -42,18 +42,8 @@ async function <%= model.id %>ListResolver(parent, args, context, info) {
     const filter = args.filter;
     options.skip = filter.skip;
     options.limit = filter.limit;
-    switch (filter.orderBy) {
-      <%_ model.allKeyFields.forEach(function(field) { _%>
-      case "<%= field.id %>_ASC":
-        options.sort = { <%= field.id %>: 1 };
-        break;
-      case "<%= field.id %>_DESC":
-        options.sort = { <%= field.id %>: -1 };
-        break;
-      <%_ }) _%>
-      default:
-        throw new Error(`Invalid orderBy '${filter.orderBy}'`)
-    }
+    options.sort = filter.orderBy;
+    options.descending = filter.descending;
     delete args.filter;
   }
   args = <%= model.id %>Decode(args);

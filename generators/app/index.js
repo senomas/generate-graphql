@@ -8,6 +8,13 @@ const path = require("path");
 const changeCase = require("change-case");
 const git = require("git-state");
 const prettier = require("prettier");
+const detectConflict = require("detect-conflict");
+const typedError = require("error/typed");
+
+const AbortedError = typedError({
+  type: "AbortedError",
+  message: "Process aborted by user"
+});
 
 const scalarType = ["String", "Int", "ID", "Boolean", "Float"];
 
@@ -26,6 +33,30 @@ module.exports = class extends Generator {
       this.log(`Run "git init" first!`);
       process.exit(1);
     }
+    this.collision = this.conflicter.collision.bind(this.conflicter);
+    this.conflicter.collision = (file, cb) => {
+      const rfilepath = path.relative(process.cwd(), file.path);
+
+      if (!fs.existsSync(file.path)) {
+        this.log.create(rfilepath);
+        cb("create");
+        return;
+      }
+
+      if (this.force) {
+        this.log.force(rfilepath);
+        cb("force");
+        return;
+      }
+
+      if (detectConflict(file.path, file.contents)) {
+        xxxx
+        this.collision(file, cb);
+      } else {
+        this.log.identical(rfilepath);
+        cb("identical");
+      }
+    };
     const gitState = git.checkSync(".");
     if (gitState.dirty > 0) {
       const answers = await this.prompt([
@@ -62,7 +93,16 @@ module.exports = class extends Generator {
   writing() {
     const models = [];
     const types = {};
-    const dirs = [`../${this.appname}-model/model`];
+    const modName = path.basename(path.resolve(".")).replace(/-graphql/g, "");
+    const dirs = [`../${modName}-model/model`];
+    if (!fs.existsSync(`../${modName}-model/model`)) {
+      this.log(
+        `Model [${
+          this.appname
+        }] [${modName}] '../${modName}-model/model' not found!`
+      );
+      process.exit(1);
+    }
     do {
       const dir = dirs.shift();
       const files = fs.readdirSync(dir, { withFileTypes: true });
@@ -176,23 +216,28 @@ module.exports = class extends Generator {
         })
       );
     });
-    models.filter(model => model.primary.length > 0).forEach(model => {
-      this.fs.copyTpl(
-        this.templatePath("resolver.js"),
-        this.destinationPath(`${model.id}-resolver.js`),
-        {
-          appname: this.appname,
-          user: this.user,
-          model
-        }
-      );
-      this.fs.write(
-        this.destinationPath(`${model.id}-resolver.js`),
-        prettier.format(this.fs.read(this.destinationPath(`${model.id}-resolver.js`)), {
-          parser: "babylon"
-        })
-      );
-    });
+    models
+      .filter(model => model.primary.length > 0)
+      .forEach(model => {
+        this.fs.copyTpl(
+          this.templatePath("resolver.js"),
+          this.destinationPath(`${model.id}-resolver.js`),
+          {
+            appname: this.appname,
+            user: this.user,
+            model
+          }
+        );
+        this.fs.write(
+          this.destinationPath(`${model.id}-resolver.js`),
+          prettier.format(
+            this.fs.read(this.destinationPath(`${model.id}-resolver.js`)),
+            {
+              parser: "babylon"
+            }
+          )
+        );
+      });
   }
 
   install() {

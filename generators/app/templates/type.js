@@ -14,14 +14,14 @@ const <%= model.id %>TypeDef = gql`
   <%_ if (model.primary.length > 0) { _%>
   enum <%= model.ID %>OrderBy {
     <%_ model.allKeyFields.forEach(function(field) { _%>
-    <%= field.id %>_ASC
-    <%= field.id %>_DESC
+    <%= field.id %>
     <%_ }) _%>
   }
   input <%= model.ID %>Filter {
-    skip: Int!
+    offset: Int!
     limit: Int!
-    orderBy: <%= model.ID %>OrderBy
+    orderBy: <%= model.ID %>OrderBy!
+    descending: Boolean!
   }
   type <%= model.ID %>PartialList {
     items: [<%= model.ID %>]
