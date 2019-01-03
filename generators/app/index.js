@@ -33,61 +33,42 @@ module.exports = class extends Generator {
       this.log(`Run "git init" first!`);
       process.exit(1);
     }
-    this.collision = this.conflicter.collision.bind(this.conflicter);
-    this.conflicter.collision = (file, cb) => {
-      const rfilepath = path.relative(process.cwd(), file.path);
-
-      if (!fs.existsSync(file.path)) {
-        this.log.create(rfilepath);
-        cb("create");
-        return;
-      }
-
-      if (this.force) {
-        this.log.force(rfilepath);
-        cb("force");
-        return;
-      }
-
-      if (detectConflict(file.path, file.contents)) {
-        xxxx
-        this.collision(file, cb);
-      } else {
-        this.log.identical(rfilepath);
-        cb("identical");
-      }
-    };
-    const gitState = git.checkSync(".");
-    if (gitState.dirty > 0) {
-      const answers = await this.prompt([
-        {
-          type: "confirm",
-          name: "dirty",
-          message: `Git ${gitState.dirty} dirty ${
-            gitState.dirty > 1 ? "files" : "file"
-          }, are you sure to run without git commit first`,
-          default: false
-        }
-      ]);
-      if (!answers.dirty) {
+    this.branch = git.branchSync(".");
+    let gco = this.spawnCommandSync("git", ["branch"], {
+      stdio: "pipe"
+    });
+    if (gco.status !== 0) {
+      this.log(
+        `"git checkout scaffolding" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
+      );
+      process.exit(1);
+    }
+    const branches = gco.stdout
+      .toString()
+      .split("\n")
+      .map(v => v.trim())
+      .filter(v => v !== "");
+    if (branches.indexOf("scaffolding") < 0) {
+      gco = this.spawnCommandSync("git", ["branch", "scaffolding"], {
+        stdio: "pipe"
+      });
+      if (gco.status !== 0) {
+        this.log(
+          `"git branch -m scaffolding" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
+        );
         process.exit(1);
       }
     }
-    if (gitState.untracked > 0) {
-      const answers = await this.prompt([
-        {
-          type: "confirm",
-          name: "untracked",
-          message: `Git ${gitState.untracked} untracked ${
-            gitState.untracked > 1 ? "files" : "file"
-          }, are you sure to run without git add and commit first`,
-          default: false
-        }
-      ]);
-      if (!answers.untracked) {
-        process.exit(1);
-      }
+    gco = this.spawnCommandSync("git", ["checkout", "scaffolding"], {
+      stdio: "pipe"
+    });
+    if (gco.status !== 0) {
+      this.log(
+        `"git checkout scaffolding" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
+      );
+      process.exit(1);
     }
+    this.conflicter.force = true;
   }
 
   writing() {
@@ -242,5 +223,45 @@ module.exports = class extends Generator {
 
   install() {
     // this.yarnInstall(["apollo-server", "graphql", "mongodb"]);
+    let gco;
+    const gc = git.checkSync();
+    if (gc.dirty > 0 || gc.untracked > 0) {
+      gco = this.spawnCommandSync("git", ["add", "."], {
+        stdio: "pipe"
+      });
+      if (gco.status !== 0) {
+        this.log(
+          `"git add ." failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
+        );
+        process.exit(1);
+      }
+      gco = this.spawnCommandSync("git", ["commit", "-m", "scaffolding"], {
+        stdio: "pipe"
+      });
+      if (gco.status !== 0) {
+        this.log(
+          `"git co -m scaffolding" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
+        );
+        process.exit(1);
+      }
+    }
+    gco = this.spawnCommandSync("git", ["checkout", this.branch], {
+      stdio: "pipe"
+    });
+    if (gco.status !== 0) {
+      this.log(
+        `"git checkout ${this.branch}" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
+      );
+      process.exit(1);
+    }
+    gco = this.spawnCommandSync("git", ["merge", "scaffolding"], {
+      stdio: "pipe"
+    });
+    if (gco.status !== 0) {
+      this.log(
+        `"git merge scaffolding" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
+      );
+      process.exit(1);
+    }
   }
 };
