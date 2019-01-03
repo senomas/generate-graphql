@@ -13,6 +13,9 @@ npm install -g https://github.com/senomas/generate-graphql.git
 Then generate your new project:
 
 ```bash
+git clone https://github.com/senomas/test-model.git
+mkdir test-graphql
+cd test-graphql
 yo graphql
 ```
 
