@@ -23,10 +23,23 @@ function isScalarType(type) {
 }
 
 module.exports = class extends Generator {
+  _exit(exitCode = 0) {
+    let gco = this.spawnCommandSync("git", ["checkout", this.branch], {
+      stdio: "pipe"
+    });
+    if (gco.status !== 0) {
+      this.log(
+        `"git checkout ${branch}" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
+      );
+      process.exit(1);
+    }
+    process.exit(exitCode);
+  }
+    
   async prompting() {
     this.log(
       yosay(
-        `Welcome to the fabulous ${chalk.red("generator-graphql")} generator!`
+        `Welcome ${JSON.stringify(this.user.git.name())} to the fabulous ${chalk.red("generator-graphql")} generator!`
       )
     );
     if (!git.isGitSync(".")) {
@@ -34,6 +47,10 @@ module.exports = class extends Generator {
       process.exit(1);
     }
     this.branch = git.branchSync(".");
+    if (this.branch === "scaffolding") {
+      this.log(`On 'scaffolding' branch!`);
+      process.exit(1);
+    }
     let gco = this.spawnCommandSync("git", ["branch"], {
       stdio: "pipe"
     });
@@ -82,7 +99,7 @@ module.exports = class extends Generator {
           this.appname
         }] [${modName}] '../${modName}-model/model' not found!`
       );
-      process.exit(1);
+      this._exit(1);
     }
     do {
       const dir = dirs.shift();
@@ -145,11 +162,20 @@ module.exports = class extends Generator {
                 2
               )}`
             );
-            process.exit(1);
+            this._exit(1);
           }
         }
       });
     });
+    this.fs.copyTpl(
+      this.templatePath("_package.json"),
+      this.destinationPath("package.json"),
+      {
+        appname: this.appname,
+        modName,
+        user: this.user
+      }
+    );
     this.fs.copyTpl(
       this.templatePath("server.js"),
       this.destinationPath("server.js"),
@@ -222,7 +248,7 @@ module.exports = class extends Generator {
   }
 
   install() {
-    // this.yarnInstall(["apollo-server", "graphql", "mongodb"]);
+    this.yarnInstall(["apollo-server", "graphql", "mongodb"]);
     let gco;
     const gc = git.checkSync();
     if (gc.dirty > 0 || gc.untracked > 0) {
@@ -233,7 +259,7 @@ module.exports = class extends Generator {
         this.log(
           `"git add ." failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
         );
-        process.exit(1);
+        this._exit(1);
       }
       gco = this.spawnCommandSync("git", ["commit", "-m", "scaffolding"], {
         stdio: "pipe"
@@ -242,7 +268,7 @@ module.exports = class extends Generator {
         this.log(
           `"git co -m scaffolding" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
         );
-        process.exit(1);
+        this._exit(1);
       }
     }
     gco = this.spawnCommandSync("git", ["checkout", this.branch], {
@@ -252,7 +278,7 @@ module.exports = class extends Generator {
       this.log(
         `"git checkout ${this.branch}" failed\n${gco.stdout.toString()}${gco.stderr.toString()}`
       );
-      process.exit(1);
+      this._exit(1);
     }
     gco = this.spawnCommandSync("git", ["merge", "scaffolding"], {
       stdio: "pipe"

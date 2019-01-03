@@ -7,11 +7,11 @@ const { <%= model.id %>Resolver, <%= model.id %>ListResolver, <%= model.id %>Cre
 const { <%= model.id %>TypeDef } = require("./<%= model.id %>");
 <%_ }}) _%>
 
-const client = new MongoClient("mongodb://localhost:27017/test", { useNewUrlParser: true });
+const client = new MongoClient(process.env.MONGODB, { useNewUrlParser: true });
 let db = null;
 
 client.connect().then(() => {
-  db = client.db("test");
+  db = client.db();
 });
 
 const server = new ApolloServer({

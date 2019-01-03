@@ -1,0 +1,12 @@
+{
+  "name": "<%= modName %>",
+  "version": "1.0.0",
+  "main": "server.js",
+  "author": "<%= user.git.name() %> <<%= user.git.email() %>>",
+  "license": "MIT",
+  "scripts": {
+    "serve": "MONGODB='mongodb://localhost:27017/test' node server.js"
+  },
+  "dependencies": {
+  }
+}
