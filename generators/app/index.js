@@ -181,6 +181,7 @@ module.exports = class extends Generator {
       this.destinationPath("server.js"),
       {
         appname: this.appname,
+        modName,
         user: this.user,
         models
       }
@@ -196,6 +197,7 @@ module.exports = class extends Generator {
       this.destinationPath("lib.js"),
       {
         appname: this.appname,
+        modName,
         user: this.user,
         models
       }
@@ -212,6 +214,7 @@ module.exports = class extends Generator {
         this.destinationPath(`${model.id}.js`),
         {
           appname: this.appname,
+          modName,
           user: this.user,
           model
         }
@@ -231,6 +234,7 @@ module.exports = class extends Generator {
           this.destinationPath(`${model.id}-resolver.js`),
           {
             appname: this.appname,
+            modName,
             user: this.user,
             model
           }
@@ -248,7 +252,8 @@ module.exports = class extends Generator {
   }
 
   install() {
-    this.yarnInstall(["apollo-server", "graphql", "mongodb"]);
+    this.yarnInstall(["bunyan", "express-bunyan-logger", "express", "apollo-server", "apollo-server-express", "graphql", "mongodb"]);
+    this.yarnInstall(["apollo-client", "apollo-cache-inmemory", "apollo-link-http", "graphql-tag", "graphql"]);
     let gco;
     const gc = git.checkSync();
     if (gc.dirty > 0 || gc.untracked > 0) {

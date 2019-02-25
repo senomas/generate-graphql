@@ -38,6 +38,7 @@ const <%= model.id %>TypeDef = gql`
   }
 
   type Mutation {
+    <%= model.id %>Drop: DropResult
     <%= model.id %>Create(<% 
       model.fields.filter(function (f) {
         return !f.validations["auto-generate"]

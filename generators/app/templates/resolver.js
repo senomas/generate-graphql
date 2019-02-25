@@ -53,6 +53,13 @@ async function <%= model.id %>ListResolver(parent, args, context, info) {
   return { total, items }
 }
 
+async function <%= model.id %>Drop(parent, args, context, info) {
+  const res = await context.db.collection("<%= model.id %>").drop();
+  return {
+    status: res
+  }
+}
+
 async function <%= model.id %>Create(parent, args, context, info) {
   args = <%= model.id %>Decode(args);
   const res = await context.db.collection("<%= model.id %>").insertOne(args);
@@ -63,4 +70,4 @@ async function <%= model.id %>Create(parent, args, context, info) {
   throw res;
 }
 
-module.exports = { <%= model.id %>Resolver, <%= model.id %>ListResolver, <%= model.id %>Create }
+module.exports = { <%= model.id %>Resolver, <%= model.id %>ListResolver, <%= model.id %>Drop, <%= model.id %>Create }
